@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use std::io::{self, Write, stdin};
+use std::io::{self, Write};
 
 fn main() {
     loop {
@@ -7,13 +7,23 @@ fn main() {
         io::stdout().flush().unwrap();
 
         let mut command = String::new();
-        stdin().read_line(&mut command).unwrap();
-        let command = command.trim();
+        io::stdin()
+            .read_line(&mut command)
+            .expect("Failed to read line");
 
-        if command == "exit 0" {
-            break;
-        } else if !command.is_empty() {
-            println!("{}: command not found", command);
+        let mut iter = command.trim().split_whitespace();
+
+        match iter.next() {
+            Some("exit") => match iter.next() {
+                Some(arg) => match arg {
+                    "0" => break,
+                    _ => panic!(),
+                },
+                None => panic!(),
+            },
+            Some("echo") => println!("{}", iter.collect::<Vec<&str>>().join(" ")),
+            Some(command) => println!("{}: command not found", command),
+            None => println!("No command provided"),
         }
     }
 }
