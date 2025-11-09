@@ -21,7 +21,7 @@ pub(crate) fn cd_cmd(args: &str) {
     match target {
         Some(path) => {
             if let Err(err) = set_current_dir(&path) {
-                eprintln!("cd: {}: {}", path.display(), err);
+                eprintln!("cd: {}: No such file or directory", path.display());
             }
         }
         None => eprintln!("cd: {}: HOME not set", args),
