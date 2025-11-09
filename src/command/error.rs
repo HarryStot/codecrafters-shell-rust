@@ -1,18 +1,9 @@
-use std::fmt;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum CommandError {
+    #[error("{0}: command not found")]
     NotFound(String),
+    #[error("Invalid arguments for command '{0}'")]
     InvalidArguments(String),
 }
-
-impl fmt::Display for CommandError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CommandError::NotFound(cmd) => write!(f, "{}: command not found", cmd),
-            CommandError::InvalidArguments(cmd) => write!(f, "Invalid arguments for command '{}'", cmd),
-        }
-    }
-}
-
-impl std::error::Error for CommandError {}
