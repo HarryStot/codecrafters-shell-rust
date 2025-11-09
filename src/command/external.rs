@@ -1,13 +1,15 @@
 use super::Command::{self, *};
 use std::{io, io::Write, process::Command as StdCommand};
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::CommandExt;
 
 pub(crate) fn external_cmd(cmd: &Command) {
-    let External { args, path, .. } = cmd else {
+    let External { cmd: cmd_name, args, path, .. } = cmd else {
         eprintln!("Unexpected error occurred while executing external command");
         return;
     };
     let output = StdCommand::new(path)
+        .arg0(cmd_name)
         .args(args.iter())
         .output()
         .expect("failed to execute process");
