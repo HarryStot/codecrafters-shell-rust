@@ -1,5 +1,6 @@
 use super::Command::{self, *};
 use std::{io, io::Write, process::Command as StdCommand};
+use std::os::unix::fs::PermissionsExt;
 
 pub(crate) fn external_cmd(cmd: &Command) {
     let External { args, path, .. } = cmd else {
@@ -18,7 +19,11 @@ pub(crate) fn parse_external_cmd(cmd: &str, args: &str) -> Option<Command> {
     let path_env = std::env::var_os("PATH")?;
     std::env::split_paths(&path_env)
         .map(|p| p.join(cmd))
-        .find(|full_path| full_path.metadata().is_ok())
+        .find(|full_path| {
+            full_path.metadata()
+                .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false)
+        })
         .map(|path_buf| External {
             cmd: cmd.to_string(),
             args: args.split_whitespace().map(String::from).collect(),
