@@ -8,7 +8,12 @@ fn main() {
 
         let mut command = String::new();
         stdin().read_line(&mut command).unwrap();
+        let command = command.trim();
 
-        println!("{}: command not found", command.trim());
+        if command == "exit 0" {
+            break;
+        } else if !command.is_empty() {
+            println!("{}: command not found", command);
+        }
     }
 }
