@@ -1,3 +1,32 @@
+use std::fs::{File, OpenOptions};
+use std::io::{self, Write};
+use super::{Redirection, RedirectionMode, RedirectionTarget};
+
+pub fn open_file_for_redirection(redir: &Redirection) -> std::io::Result<File> {
+    match redir.mode {
+        RedirectionMode::Overwrite => File::create(&redir.file),
+        RedirectionMode::Append => OpenOptions::new().create(true).append(true).open(&redir.file),
+    }
+}
+
+// This function returns a "Writer" that is either a file or stdout/stderr.
+pub fn get_output_writer(
+    redirections: &[Redirection],
+    target: RedirectionTarget,
+) -> Box<dyn Write> {
+    if let Some(redir) = redirections.iter().find(|r| r.target == target) {
+        let file = open_file_for_redirection(redir)
+            .expect("Failed to open redirection file");
+        return Box::new(file);
+    }
+
+    // If no redirection is found for the target, return the standard stream.
+    match target {
+        RedirectionTarget::Stdout => Box::new(io::stdout()),
+        RedirectionTarget::Stderr => Box::new(io::stderr()),
+    }
+}
+
 pub(crate) fn preprocess_args(args: &str) -> String {
     let tokens = split_args(args);
     if tokens.is_empty() {

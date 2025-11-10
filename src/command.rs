@@ -1,26 +1,58 @@
 use error::CommandError;
 
+mod cd;
 pub(crate) mod echo;
 pub(crate) mod error;
 pub(crate) mod exit;
 pub(crate) mod external;
-pub(crate) mod typee;
 pub(crate) mod pwd;
-mod cd;
+pub(crate) mod typee;
 pub(crate) mod utils; // extracted shared utilities
 
+// Represents whether to overwrite (>) or append (>>)
+#[derive(Debug)]
+pub enum RedirectionMode {
+    Overwrite,
+    Append,
+}
+
+// Represents the output stream to be redirected
+#[derive(Debug, PartialEq)]
+pub enum RedirectionTarget {
+    Stdout,
+    Stderr,
+}
+
+// A struct to hold all information about a single redirection
+#[derive(Debug)]
+pub struct Redirection {
+    pub target: RedirectionTarget,
+    pub file: String,
+    pub mode: RedirectionMode,
+}
+
+#[derive(Debug)]
 pub enum Command {
     Noop,
     Exit(i32),
-    Echo(String),
-    Type(String),
-    Pwd,
     Cd(String),
+    Echo {
+        message: String,
+        redirections: Vec<Redirection>,
+    },
+    Type {
+        cmd: String,
+        redirections: Vec<Redirection>,
+    },
+    Pwd {
+        redirections: Vec<Redirection>,
+    },
     External {
         cmd: String,
         args: Vec<String>,
         path: String,
-    }
+        redirections: Vec<Redirection>,
+    },
 }
 
 impl Command {
@@ -29,9 +61,12 @@ impl Command {
         match self {
             Noop => (),
             Exit(code) => exit::exit_cmd(*code),
-            Echo(message) => echo::echo_cmd(message),
-            Type(cmd) => typee::type_cmd(cmd),
-            Pwd => pwd::pwd_cmd(),
+            Echo {
+                message,
+                redirections,
+            } => echo::echo_cmd(message, redirections),
+            Type { cmd, redirections } => typee::type_cmd(cmd, redirections),
+            Pwd { redirections } => pwd::pwd_cmd(redirections),
             Cd(path) => cd::cd_cmd(path),
             External { .. } => external::external_cmd(self),
         }
@@ -40,7 +75,50 @@ impl Command {
     pub fn from(input: &str) -> Result<Command, CommandError> {
         use Command::*;
         let input = input.trim();
-        let input_tokens = utils::split_args(input);
+        let mut input_tokens = utils::split_args(input);
+
+        // Use Options to ensure the last redirection for each stream is the one that's kept.
+        let mut stdout_redir = None;
+        let mut stderr_redir = None;
+
+        let mut i = 0;
+        while i < input_tokens.len() {
+            let (target, mode) = match input_tokens[i].as_str() {
+                ">" => (RedirectionTarget::Stdout, RedirectionMode::Overwrite),
+                "1>" => (RedirectionTarget::Stdout, RedirectionMode::Overwrite),
+                ">>" => (RedirectionTarget::Stdout, RedirectionMode::Append),
+                "1>>" => (RedirectionTarget::Stdout, RedirectionMode::Append),
+                "2>" => (RedirectionTarget::Stderr, RedirectionMode::Overwrite),
+                "2>>" => (RedirectionTarget::Stderr, RedirectionMode::Append),
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            };
+
+            if i + 1 >= input_tokens.len() {
+                return Err(CommandError::InvalidArguments(
+                    "Missing file for redirection".to_string(),
+                ));
+            }
+            let file = input_tokens.remove(i + 1);
+            input_tokens.remove(i);
+
+            let redir = Redirection { target, file, mode };
+            match redir.target {
+                RedirectionTarget::Stdout => stdout_redir = Some(redir),
+                RedirectionTarget::Stderr => stderr_redir = Some(redir),
+            }
+        }
+
+        let mut redirections = Vec::new();
+        if let Some(r) = stdout_redir {
+            redirections.push(r);
+        }
+        if let Some(r) = stderr_redir {
+            redirections.push(r);
+        }
+
         let cmd = input_tokens.first().map(|s| s.as_str()).unwrap_or("");
         let args_tokens: Vec<String> = if input_tokens.len() > 1 {
             input_tokens[1..].to_vec()
@@ -55,16 +133,15 @@ impl Command {
 
         Ok(match cmd {
             "" => Noop,
-            "echo" => echo::parse_echo_cmd(&args_for_builtins)?,
+            "echo" => echo::parse_echo_cmd(&args_for_builtins, redirections)?,
             "exit" => exit::parse_exit_cmd(&args_for_builtins)?,
-            "type" => typee::parse_type_cmd(&args_for_builtins)?,
-            "pwd" => pwd::parse_pwd_cmd(&args_for_builtins)?,
+            "type" => typee::parse_type_cmd(&args_for_builtins, redirections)?,
+            "pwd" => pwd::parse_pwd_cmd(&args_for_builtins, redirections)?,
             "cd" => cd::parse_cd_cmd(&args_for_builtins)?,
-            _ => match external::parse_external_cmd(cmd, args_tokens) {
+            _ => match external::parse_external_cmd(cmd, args_tokens, redirections) {
                 Some(cmd) => cmd,
                 None => return Err(CommandError::NotFound(cmd.to_string())),
             },
         })
     }
-
 }
