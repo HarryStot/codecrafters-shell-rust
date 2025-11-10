@@ -28,7 +28,7 @@ pub(crate) fn parse_external_cmd(cmd: &str, raw_args: &str) -> Option<Command> {
         })
         .map(|path_buf| External {
             cmd: cmd.to_string(),
-            args: super::utils::split_args_respecting_single_quotes(raw_args),
+            args: super::utils::split_args(raw_args),
             path: path_buf.to_string_lossy().to_string(),
         })
 }

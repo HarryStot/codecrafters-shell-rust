@@ -20,7 +20,7 @@ pub(crate) fn cd_cmd(args: &str) {
 
     match target {
         Some(path) => {
-            if let Err(err) = set_current_dir(&path) {
+            if let Err(_err) = set_current_dir(&path) {
                 eprintln!("cd: {}: No such file or directory", path.display());
             }
         }
