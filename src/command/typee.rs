@@ -1,14 +1,11 @@
-use super::{Command, CommandError, Redirection, RedirectionTarget, utils};
+use super::{Command, CommandError, Redirection};
 use std::io::Write;
 
-pub(crate) fn type_cmd(cmd: &str, redirections: &[Redirection]) {
+pub(crate) fn type_cmd(cmd: &str, stdout_writer: &mut dyn Write, stderr_writer: &mut dyn Write) {
     use Command::*;
     if cmd.is_empty() {
         return;
     }
-
-    let mut stdout_writer = utils::get_output_writer(redirections, RedirectionTarget::Stdout);
-    let mut stderr_writer = utils::get_output_writer(redirections, RedirectionTarget::Stderr);
 
     // We need to parse the command without executing it, so we create a new `from` without redirections.
     let cmd_to_check = format!("{} {}", cmd, "");

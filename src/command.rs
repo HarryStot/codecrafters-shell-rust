@@ -61,13 +61,27 @@ impl Command {
         match self {
             Noop => (),
             Exit(code) => exit::exit_cmd(*code),
+            Cd(path) => cd::cd_cmd(path),
+
             Echo {
                 message,
                 redirections,
-            } => echo::echo_cmd(message, redirections),
-            Type { cmd, redirections } => typee::type_cmd(cmd, redirections),
-            Pwd { redirections } => pwd::pwd_cmd(redirections),
-            Cd(path) => cd::cd_cmd(path),
+            } => {
+                let mut stdout_writer = utils::get_output_writer(redirections, RedirectionTarget::Stdout);
+                // Eagerly get stderr writer to create/truncate the file, even if unused.
+                let _stderr_writer = utils::get_output_writer(redirections, RedirectionTarget::Stderr);
+                echo::echo_cmd(message, &mut stdout_writer);
+            }
+            Type { cmd, redirections } => {
+                let mut stdout_writer = utils::get_output_writer(redirections, RedirectionTarget::Stdout);
+                let mut stderr_writer = utils::get_output_writer(redirections, RedirectionTarget::Stderr);
+                typee::type_cmd(cmd, &mut stdout_writer, &mut stderr_writer);
+            }
+            Pwd { redirections } => {
+                let mut stdout_writer = utils::get_output_writer(redirections, RedirectionTarget::Stdout);
+                let mut stderr_writer = utils::get_output_writer(redirections, RedirectionTarget::Stderr);
+                pwd::pwd_cmd(&mut stdout_writer, &mut stderr_writer);
+            }
             External { .. } => external::external_cmd(self),
         }
     }
