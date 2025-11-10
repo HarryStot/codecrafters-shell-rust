@@ -39,19 +39,28 @@ impl Command {
 
     pub fn from(input: &str) -> Result<Command, CommandError> {
         use Command::*;
-        let input = input.trim().splitn(2, ' ').collect::<Vec<&str>>();
-        let cmd = input.get(0).copied().unwrap_or("");
-        let args_raw = input.get(1).copied().unwrap_or("");
-        let args = utils::preprocess_args(args_raw);
+        let input = input.trim();
+        let input_tokens = utils::split_args(input);
+        let cmd = input_tokens.first().map(|s| s.as_str()).unwrap_or("");
+        let args_tokens: Vec<String> = if input_tokens.len() > 1 {
+            input_tokens[1..].to_vec()
+        } else {
+            Vec::new()
+        };
+        let args_for_builtins = if args_tokens.is_empty() {
+            String::new()
+        } else {
+            args_tokens.join(" ")
+        };
 
         Ok(match cmd {
             "" => Noop,
-            "echo" => echo::parse_echo_cmd(&args)?,
-            "exit" => exit::parse_exit_cmd(&args)?,
-            "type" => typee::parse_type_cmd(&args)?,
-            "pwd" => pwd::parse_pwd_cmd(&args)?,
-            "cd" => cd::parse_cd_cmd(&args)?,
-            _ => match external::parse_external_cmd(cmd, args_raw) {
+            "echo" => echo::parse_echo_cmd(&args_for_builtins)?,
+            "exit" => exit::parse_exit_cmd(&args_for_builtins)?,
+            "type" => typee::parse_type_cmd(&args_for_builtins)?,
+            "pwd" => pwd::parse_pwd_cmd(&args_for_builtins)?,
+            "cd" => cd::parse_cd_cmd(&args_for_builtins)?,
+            _ => match external::parse_external_cmd(cmd, args_tokens) {
                 Some(cmd) => cmd,
                 None => return Err(CommandError::NotFound(cmd.to_string())),
             },

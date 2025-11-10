@@ -7,7 +7,7 @@ pub(crate) fn cd_cmd(args: &str) {
     let args = args.trim();
     let target = if args.is_empty() {
         // no argument -> HOME if set
-        var_os("HOME").map(|h| PathBuf::from(h))
+        var_os("HOME").map(PathBuf::from)
     } else if args.starts_with('~') {
         // expand ~ to HOME if possible, otherwise treat literally without the ~
         var_os("HOME").map(|h| {
