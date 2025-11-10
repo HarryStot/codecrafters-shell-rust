@@ -12,9 +12,19 @@ pub(crate) fn split_args(raw: &str) -> Vec<String> {
     let mut current = String::new();
     let mut in_single_quotes = false;
     let mut in_double_quotes = false;
+    let mut last_was_backslash = false;
 
     for c in raw.chars() {
+        if last_was_backslash {
+            current.push(c);
+            last_was_backslash = false;
+            continue;
+        }
+
         match c {
+            '\\' => {
+                last_was_backslash = true;
+            }
             '"' => {
                 if in_single_quotes {
                     current.push(c);
@@ -38,6 +48,10 @@ pub(crate) fn split_args(raw: &str) -> Vec<String> {
             }
             ch => current.push(ch),
         }
+    }
+
+    if last_was_backslash {
+        current.push('\\');
     }
 
     if !current.is_empty() {
