@@ -8,35 +8,56 @@ pub(crate) fn preprocess_args(args: &str) -> String {
 }
 
 pub(crate) fn split_args(raw: &str) -> Vec<String> {
+    use std::iter::Peekable;
+    use std::str::Chars;
+
     let mut result = Vec::new();
     let mut current = String::new();
     let mut in_single_quotes = false;
     let mut in_double_quotes = false;
-    let mut last_was_backslash = false;
 
-    for c in raw.chars() {
-        if last_was_backslash {
-            current.push(c);
-            last_was_backslash = false;
-            continue;
-        }
+    let mut iter: Peekable<Chars<'_>> = raw.chars().peekable();
 
-        match c {
+    while let Some(ch) = iter.next() {
+        match ch {
+            '\'' if !in_double_quotes => {
+                in_single_quotes = !in_single_quotes;
+            }
+            '"' if !in_single_quotes => {
+                in_double_quotes = !in_double_quotes;
+            }
             '\\' => {
-                last_was_backslash = true;
-            }
-            '"' => {
                 if in_single_quotes {
-                    current.push(c);
+                    // In single quotes backslash is literal
+                    current.push('\\');
+                } else if in_double_quotes {
+                    // In double quotes, backslash only escapes a few chars: " \\ $ `
+                    match iter.peek() {
+                        Some(&next) => match next {
+                            '"' | '\\' | '$' | '`' => {
+                                // consume and push the escaped char
+                                current.push(iter.next().unwrap());
+                            }
+                            '\n' => {
+                                // backslash-newline: remove both (line continuation)
+                                iter.next();
+                            }
+                            _ => {
+                                // leave backslash as literal
+                                current.push('\\');
+                            }
+                        },
+                        None => {
+                            // trailing backslash -> literal
+                            current.push('\\');
+                        }
+                    }
                 } else {
-                    in_double_quotes = !in_double_quotes;
-                }
-            }
-            '\'' => {
-                if in_double_quotes {
-                    current.push(c);
-                } else {
-                    in_single_quotes = !in_single_quotes;
+                    // Outside any quotes: backslash escapes next character (if any)
+                    match iter.next() {
+                        Some(next) => current.push(next),
+                        None => current.push('\\'),
+                    }
                 }
             }
             ' ' if !in_single_quotes && !in_double_quotes => {
@@ -44,14 +65,10 @@ pub(crate) fn split_args(raw: &str) -> Vec<String> {
                     result.push(current.clone());
                     current.clear();
                 }
-                // if current is empty, skip extra separators
+                // else skip multiple spaces
             }
-            ch => current.push(ch),
+            other => current.push(other),
         }
-    }
-
-    if last_was_backslash {
-        current.push('\\');
     }
 
     if !current.is_empty() {
