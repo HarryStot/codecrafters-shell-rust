@@ -51,7 +51,7 @@ impl Command {
             "type" => typee::parse_type_cmd(&args)?,
             "pwd" => pwd::parse_pwd_cmd(&args)?,
             "cd" => cd::parse_cd_cmd(&args)?,
-            _ => match external::parse_external_cmd(cmd, &args) {
+            _ => match external::parse_external_cmd(cmd, args_raw) {
                 Some(cmd) => cmd,
                 None => return Err(CommandError::NotFound(cmd.to_string())),
             },

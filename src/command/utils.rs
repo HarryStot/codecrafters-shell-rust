@@ -31,11 +31,28 @@ pub(crate) fn preprocess_args(args: &str) -> String {
     out
 }
 
-pub(crate) fn split_preprocessed_args(preprocessed: &str) -> Vec<String> {
-    if preprocessed.is_empty() {
-        Vec::new()
-    } else {
-        preprocessed.split(' ').map(String::from).collect()
-    }
-}
+pub(crate) fn split_args_respecting_single_quotes(raw: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut in_quotes = false;
 
+    for c in raw.chars() {
+        match c {
+            '\'' => in_quotes = !in_quotes,
+            ' ' if !in_quotes => {
+                if !current.is_empty() {
+                    result.push(current.clone());
+                    current.clear();
+                }
+                // if current is empty, skip extra separators
+            }
+            ch => current.push(ch),
+        }
+    }
+
+    if !current.is_empty() {
+        result.push(current);
+    }
+
+    result
+}

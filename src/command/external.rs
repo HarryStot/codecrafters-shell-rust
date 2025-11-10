@@ -17,7 +17,7 @@ pub(crate) fn external_cmd(cmd: &Command) {
     io::stderr().write_all(&output.stderr).unwrap();
 }
 
-pub(crate) fn parse_external_cmd(cmd: &str, args: &str) -> Option<Command> {
+pub(crate) fn parse_external_cmd(cmd: &str, raw_args: &str) -> Option<Command> {
     let path_env = std::env::var_os("PATH")?;
     std::env::split_paths(&path_env)
         .map(|p| p.join(cmd))
@@ -28,7 +28,7 @@ pub(crate) fn parse_external_cmd(cmd: &str, args: &str) -> Option<Command> {
         })
         .map(|path_buf| External {
             cmd: cmd.to_string(),
-            args: super::utils::split_preprocessed_args(args),
+            args: super::utils::split_args_respecting_single_quotes(raw_args),
             path: path_buf.to_string_lossy().to_string(),
         })
 }
